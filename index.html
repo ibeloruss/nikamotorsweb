@@ -1,0 +1,327 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NIKA MOTORS — Автомобили из Кореи</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b0b0d;
+      color: #fff;
+      line-height: 1.6;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 8%;
+      border-bottom: 1px solid #292929;
+    }
+
+    .logo {
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .logo span {
+      color: #e3222b;
+    }
+
+    nav a {
+      color: #fff;
+      text-decoration: none;
+      margin-left: 22px;
+      font-size: 14px;
+    }
+
+    .hero {
+      padding: 90px 8% 70px;
+      background: linear-gradient(120deg, #171719, #09090a);
+    }
+
+    .tag {
+      color: #ff4149;
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: clamp(36px, 6vw, 66px);
+      line-height: 1.1;
+      max-width: 750px;
+      margin: 20px 0;
+    }
+
+    h1 span {
+      color: #e3222b;
+    }
+
+    .intro {
+      color: #bdbdbd;
+      max-width: 580px;
+      margin-bottom: 32px;
+    }
+
+    .calculator {
+      max-width: 650px;
+      padding: 25px;
+      background: #19191c;
+      border: 1px solid #333;
+      border-radius: 14px;
+    }
+
+    .calculator h2 {
+      font-size: 21px;
+      margin-bottom: 15px;
+    }
+
+    input {
+      width: 100%;
+      padding: 15px;
+      margin: 8px 0 14px;
+      border: 1px solid #414145;
+      border-radius: 7px;
+      background: #101012;
+      color: white;
+      font-size: 15px;
+    }
+
+    button {
+      border: none;
+      border-radius: 7px;
+      padding: 15px 22px;
+      background: #e3222b;
+      color: white;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #bd1820;
+    }
+
+    .note {
+      font-size: 12px;
+      color: #999;
+      margin-top: 12px;
+    }
+
+    .section {
+      padding: 65px 8%;
+    }
+
+    .section h2 {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+
+    .section-description {
+      color: #aaa;
+      margin-bottom: 28px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: #18181b;
+      border: 1px solid #303034;
+      border-radius: 12px;
+      padding: 26px;
+    }
+
+    .card .number {
+      color: #e3222b;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .card h3 {
+      font-size: 23px;
+      margin: 12px 0;
+    }
+
+    .card p {
+      color: #aaa;
+      font-size: 14px;
+    }
+
+    .steps {
+      background: #151517;
+    }
+
+    .contact {
+      text-align: center;
+    }
+
+    .contact p {
+      color: #aaa;
+      margin: 12px 0 24px;
+    }
+
+    footer {
+      padding: 25px 8%;
+      border-top: 1px solid #292929;
+      color: #888;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 700px) {
+      header {
+        padding: 20px 5%;
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+
+      nav a {
+        margin-left: 0;
+        margin-right: 14px;
+      }
+
+      .hero, .section {
+        padding: 55px 5%;
+      }
+
+      .cards {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">NIKA <span>MOTORS</span></div>
+    <nav>
+      <a href="#calculator">Расчёт</a>
+      <a href="#directions">Направления</a>
+      <a href="#contacts">Контакты</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="tag">Автомобили из Азии</div>
+      <h1>Твой автомобиль.<br><span>Наша задача.</span></h1>
+      <p class="intro">
+        Подбор автомобилей в Южной Корее с расчётом стоимости
+        доставки и таможенных платежей до России.
+      </p>
+
+      <div class="calculator" id="calculator">
+        <h2>Рассчитать автомобиль из Кореи</h2>
+        <form id="carForm">
+          <label for="encarUrl">Ссылка на автомобиль Encar</label>
+          <input
+            id="encarUrl"
+            type="url"
+            placeholder="https://fem.encar.com/cars/detail/..."
+            required
+          >
+          <button type="submit">Рассчитать стоимость</button>
+          <p class="note">
+            Сейчас это демонстрационная форма. Автоматический парсер
+            и расчёт стоимости будут подключены отдельно.
+          </p>
+        </form>
+        <p id="formMessage" role="status" style="margin-top:15px"></p>
+      </div>
+    </section>
+
+    <section class="section" id="directions">
+      <h2>Автомобили из Азии</h2>
+      <p class="section-description">
+        Начинаем с Южной Кореи. Другие направления добавим позже.
+      </p>
+
+      <div class="cards">
+        <article class="card">
+          <div class="number">01 / СТАРТ</div>
+          <h3>Южная Корея</h3>
+          <p>Подбор по объявлениям Encar и расчёт стоимости до России.</p>
+        </article>
+
+        <article class="card">
+          <div class="number">02 / ПОЗЖЕ</div>
+          <h3>Япония</h3>
+          <p>Добавим отдельные источники автомобилей и калькулятор.</p>
+        </article>
+
+        <article class="card">
+          <div class="number">03 / ПОЗЖЕ</div>
+          <h3>Китай</h3>
+          <p>Расширим каталог и добавим расчёт стоимости доставки.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section steps">
+      <h2>Как это работает</h2>
+      <div class="cards">
+        <article class="card">
+          <h3>01. Выбор</h3>
+          <p>Отправляете ссылку на автомобиль.</p>
+        </article>
+        <article class="card">
+          <h3>02. Проверка</h3>
+          <p>Система собирает характеристики и проверяет данные.</p>
+        </article>
+        <article class="card">
+          <h3>03. Расчёт</h3>
+          <p>Получаете предварительную стоимость до России.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section contact" id="contacts">
+      <h2>NIKA MOTORS</h2>
+      <p>Автомобили из Кореи в Россию.</p>
+      <a href="https://www.instagram.com/nika.motors/"
+         style="color:#ff4149;text-decoration:none">
+        Instagram: @nika.motors
+      </a>
+    </section>
+  </main>
+
+  <footer>
+    © 2026 NIKA MOTORS — Автомобили из Азии
+  </footer>
+
+  <script>
+    document.getElementById("carForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+
+      const url = document.getElementById("encarUrl").value.trim();
+      const message = document.getElementById("formMessage");
+
+      if (!/^https:\/\/(fem\.)?encar\.com\/cars\/detail\/\d+/.test(url)) {
+        message.textContent = "Вставьте корректную ссылку на объявление Encar.";
+        message.style.color = "#ff7379";
+        return;
+      }
+
+      message.textContent =
+        "Ссылка принята. Автоматический расчёт пока не подключён.";
+      message.style.color = "#f2c66d";
+    });
+  </script>
+
+</body>
+</html>
