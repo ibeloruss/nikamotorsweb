@@ -333,10 +333,33 @@ def parse(cid):
     brand_ko = {"기아":"Kia", "현대":"Hyundai", "제네시스":"Genesis", "쉐보레":"Chevrolet", "르노코리아":"Renault Korea", "KG모빌리티":"KG Mobility", "쌍용":"SsangYong", "벤츠":"Mercedes-Benz", "메르세데스-벤츠":"Mercedes-Benz"}
     if fields.get("brand"):
         fields["brand"] = brand_ko.get(str(fields["brand"]).strip(), fields["brand"])
-    model_ko = {"셀토스 2세대":"Seltos (2nd Gen)", "셀토스":"Seltos", "스포티지":"Sportage", "쏘렌토":"Sorento", "아반떼":"Avante", "그랜저":"Grandeur", "투싼":"Tucson", "싼타페":"Santa Fe", "코나":"Kona", "니로":"Niro"}
+    model_ko = {
+        "더 뉴 아반떼":"The New Avante", "아반떼":"Avante", "아반떼 cn7":"Avante (CN7)",
+        "더 뉴 셀토스":"The New Seltos", "셀토스 2세대":"Seltos (2nd Gen)", "셀토스":"Seltos",
+        "스포티지":"Sportage", "더 뉴 스포티지":"The New Sportage",
+        "쏘렌토":"Sorento", "더 뉴 쏘렌토":"The New Sorento",
+        "그랜저":"Grandeur", "디 올 뉴 그랜저":"The All-New Grandeur",
+        "투싼":"Tucson", "싼타페":"Santa Fe", "코나":"Kona", "니로":"Niro",
+        "모닝":"Morning", "레이":"Ray", "K3":"K3 (Cerato)", "K5":"K5 (Optima)",
+        "K7":"K7 (Cadenza)", "K8":"K8", "K9":"K9 (Quoris)", "카니발":"Carnival",
+        "봉고":"Bongo", "EV6":"EV6", "EV9":"EV9", "쏘울":"Soul", "스토닉":"Stonic",
+        "캐스퍼":"Casper", "팰리세이드":"Palisade", "아이오닉 5":"IONIQ 5",
+        "아이오닉 6":"IONIQ 6", "제네시스 g70":"Genesis G70", "제네시스 g80":"Genesis G80",
+        "제네시스 g90":"Genesis G90", "gv60":"GV60", "gv70":"GV70", "gv80":"GV80",
+        "티볼리":"Tivoli", "코란도":"Korando", "렉스턴":"Rexton",
+        "말리부":"Malibu", "트랙스":"Trax", "트레일블레이저":"Trailblazer",
+        "sm6":"SM6", "qm6":"QM6", "xm3":"XM3"
+    }
     if fields.get("model"):
         raw_model = str(fields["model"]).strip()
-        fields["model"] = model_ko.get(raw_model, raw_model)
+        model_key = raw_model.casefold()
+        translated_model = model_ko.get(model_key)
+        if not translated_model:
+            for ko_name in sorted(model_ko, key=len, reverse=True):
+                if ko_name and ko_name in model_key:
+                    translated_model = raw_model.replace(ko_name, model_ko[ko_name])
+                    break
+        fields["model"] = translated_model or raw_model
     transmission_ko = {"오토":"Автомат", "자동":"Автомат", "수동":"Механическая", "세미오토":"Полуавтомат", "무단변속기":"Вариатор (CVT)", "CVT":"Вариатор (CVT)", "DCT":"Робот (DCT)", "듀얼클러치":"Робот (DCT)"}
     if fields.get("transmission"):
         raw_transmission = str(fields["transmission"]).strip()
