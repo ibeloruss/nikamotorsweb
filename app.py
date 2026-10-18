@@ -329,6 +329,18 @@ def parse(cid):
       "vehicle_no":val(d,["vehicle_no","vehicle_number","plate_number"]),
       "year":val(d,["form_year","year","model_year"])
     }
+    # Translate common Korean Encar labels into readable listing text.
+    brand_ko = {"기아":"Kia", "현대":"Hyundai", "제네시스":"Genesis", "쉐보레":"Chevrolet", "르노코리아":"Renault Korea", "KG모빌리티":"KG Mobility", "쌍용":"SsangYong", "벤츠":"Mercedes-Benz", "메르세데스-벤츠":"Mercedes-Benz"}
+    if fields.get("brand"):
+        fields["brand"] = brand_ko.get(str(fields["brand"]).strip(), fields["brand"])
+    model_ko = {"셀토스 2세대":"Seltos (2nd Gen)", "셀토스":"Seltos", "스포티지":"Sportage", "쏘렌토":"Sorento", "아반떼":"Avante", "그랜저":"Grandeur", "투싼":"Tucson", "싼타페":"Santa Fe", "코나":"Kona", "니로":"Niro"}
+    if fields.get("model"):
+        raw_model = str(fields["model"]).strip()
+        fields["model"] = model_ko.get(raw_model, raw_model)
+    transmission_ko = {"오토":"Автомат", "자동":"Автомат", "수동":"Механическая", "세미오토":"Полуавтомат", "무단변속기":"Вариатор (CVT)", "CVT":"Вариатор (CVT)", "DCT":"Робот (DCT)", "듀얼클러치":"Робот (DCT)"}
+    if fields.get("transmission"):
+        raw_transmission = str(fields["transmission"]).strip()
+        fields["transmission"] = transmission_ko.get(raw_transmission, raw_transmission)
     # Correct contradictory/missing fuel labels when the exact listing title/model explicitly identifies a hybrid.
     # Encar may expose the combustion component as gasoline even for a hybrid vehicle.
     listing_identity = " ".join(str(fields.get(k) or "") for k in ("title", "brand", "model", "trim")).casefold()
