@@ -181,7 +181,7 @@ def apply_verified_drom_reference(fields):
     model=str(fields.get("model") or "").lower()
     trim=str(fields.get("trim") or "").lower()
     title=str(fields.get("title") or "").lower()
-    # Encar/XAPI sometimes puts the useful model/trim text only in the title.
+    # Encar/ReefAPI sometimes puts the useful model/trim text only in the title.
     identity=" ".join((brand, model, trim, title))
     fuel=str(fields.get("fuel") or "").lower()
     trans=str(fields.get("transmission") or "").lower()
@@ -225,7 +225,7 @@ def apply_verified_drom_reference(fields):
         fields["specification_source"] = None
         fields["specification_source_url"] = fields.get("drom_check_url")
         fields["specification_match"] = "not_matched"
-        fields["specification_note"] = "Encar/XAPI и таблица точных проверенных модификаций не дали подтверждённую мощность. Значение не угадывается; требуется ручная проверка по VIN/двигателю и источнику спецификаций."
+        fields["specification_note"] = "Encar/ReefAPI и таблица точных проверенных модификаций не дали подтверждённую мощность. Значение не угадывается; требуется ручная проверка по VIN/двигателю и источнику спецификаций."
     return fields
 
 def apply_verified_transmission_reference(fields):
@@ -286,20 +286,19 @@ def parse(cid):
     api_title=val(d,["title","vehicle_title","listing_title","name","model_group_en"])
     title=api_title or " ".join(x for x in (brand,model,trim) if x) or None
 
-    # XAPI field names vary between listing types. Prefer explicit year-month fields.
+    # ReefAPI field names vary between listing types. Prefer explicit year-month fields.
     production_raw=val(d,["year_month","yearMonth","production_date","manufacture_date",
                           "manufacturing_date","manufactureDate","productionDate","made_year_month",
                           "madeYearMonth","date_of_manufacture","model_year_month"])
-    # `form_year` is only a fallback: it often contains the model year, not the exact production month.
-    if not production_raw:
-        production_raw=val(d,["form_year"])
+    # Do not infer a production month from form_year/model year. Only accept a source
+    # field that explicitly contains a month and year; otherwise ask for manual confirmation.
     if not production_raw:
         # Search nested response objects for a field whose name explicitly indicates production month/date.
         production_raw=find_value(d,["year_month","yearMonth","production_date","manufacture_date",
                                      "manufacturing_date","manufactureDate","productionDate",
                                      "made_year_month","madeYearMonth","date_of_manufacture"])
         production_raw=clean(production_raw)
-    # Some XAPI listing responses expose the exact production month in `year` as YYYYMM
+    # Some listing responses expose the exact production month in `year` as YYYYMM
     # while `form_year` contains only YYYY. Prefer YYYYMM only when it is explicitly present.
     if not re.fullmatch(r"\d{4}\d{2}", str(production_raw or "").strip()):
         year_month_candidate=val(d,["year","yearMonth","year_month"])
@@ -319,7 +318,7 @@ def parse(cid):
       "mileage_km":val(d,["mileage_km","mileage","mileageKm","distance"]),
       "production_date_raw":production_raw,
       "production_date":format_production_date(production_raw),
-      "production_date_source":"Encar/XAPI" if production_raw else None,
+      "production_date_source":"Encar/ReefAPI" if production_raw else None,
       "engine_cc":engine_cc_value,
       "power_hp":val(d,["power_hp","horsepower","horse_power","power_hp_ps","engine_power_hp","enginePowerHp","engine_power_ps","enginePowerPs","horsepower_ps","horsePowerPs","powerPs","max_power_ps","maxPowerPs","output_ps","engineOutputPs","ps","hp","horsepowerPs","engine_power","enginePower","max_power","maxPower","rated_power_ps","ratedPowerPs"]),
       "power_kw":val(d,["power_kw","engine_power_kw","enginePowerKw","horsepower_kw","horsePowerKw","max_power_kw","maxPowerKw","output_kw","engineOutputKw","rated_power_kw","ratedPowerKw","kw"]),
@@ -342,7 +341,7 @@ def parse(cid):
     if not fields.get("power_hp") and fields.get("power_kw") not in (None, ""):
         try:
             fields["power_hp"] = round(float(re.search(r"[0-9]+(?:[.,][0-9]+)?", str(fields["power_kw"])).group(0).replace(",", ".")) * 1.35962)
-            fields["power_hp_source"] = "converted from XAPI kW"
+            fields["power_hp_source"] = "converted from ReefAPI kW"
         except (AttributeError, ValueError):
             fields["power_hp"] = None
     # Drive type is useful descriptive information but does not affect the price calculation.
@@ -454,11 +453,11 @@ def auto_publish():
             # calculator settings at their configured defaults.
             prod=fields.get("production_date") or ""
             prod=prod if re.fullmatch(r"(0[1-9]|1[0-2])\.\d{4}",str(prod)) else ""
-            return render_template_string("""<!doctype html><html lang=ru><meta name=viewport content='width=device-width,initial-scale=1'><style>body{font:17px system-ui;background:#111;color:#eee;padding:22px;max-width:720px;margin:auto}input,button{font:inherit;width:100%;box-sizing:border-box;padding:13px;margin:8px 0 18px;border-radius:9px;border:1px solid #555}input{background:#fff;color:#111}button{background:#b71c1c;color:white;border:0;font-weight:700}label{display:block;margin-top:10px}a{color:#9ecbff}</style><h2>Нужно уточнить данные автомобиля</h2><p>Для автомобиля <b>{{title}}</b> (VIN: {{vin or 'не указан'}}) не хватает характеристик. Заполни вручную только те поля, которые Encar/XAPI не вернул.</p><form method=post action='/calculate'><input type=hidden name=car_id value='{{car_id}}'><input type=hidden name=rate value='{{default_rate}}'><input type=hidden name=eur_rate value='{{default_eur_rate}}'><input type=hidden name=customs_adjustment value='0'><input type=hidden name=kr_extra value='1740000'><input type=hidden name=ru_extra value='450000'>{% if not hp %}<label>Мощность двигателя, л.с.</label><input name=power_hp type=number min=1 max=2000 step=1 required placeholder='Например, 150'>{% else %}<input type=hidden name=power_hp value='{{hp}}'>{% endif %}{% if not fuel %}<label>Тип топлива</label><select name=manual_fuel required><option value=''>Выбери тип топлива</option>{% for v in ['Бензин','Дизель','Гибрид','Подключаемый гибрид (PHEV)','Электро','Газ/LPG','Бензин/газ','Другое'] %}<option value='{{v}}'>{{v}}</option>{% endfor %}</select>{% endif %}{% if not transmission %}<label>Тип трансмиссии</label><select name=manual_transmission required><option value=''>Выбери трансмиссию</option>{% for v in ['Механическая','Классический автомат','Робот (DCT/DSG)','Вариатор (CVT)','Одноступенчатая (электромобиль)','Другая'] %}<option value='{{v}}'>{{v}}</option>{% endfor %}</select>{% endif %}<label>Месяц и год производства (MM.YYYY)</label><input name=production_month value='{{prod}}' placeholder='Например, 02.2021' pattern='(0[1-9]|1[0-2])\.[0-9]{4}' required><p>Месяц подставлен автоматически, только если он действительно пришёл из Encar. Если поле пустое, API не передал точный месяц — укажи его по данным автомобиля, не по модельному году.</p><button>Рассчитать стоимость</button></form><a href='/'>Вернуться</a></html>""",car_id=car_id,title=fields.get("title") or "автомобиля",vin=fields.get("vin"),hp=fields.get("power_hp"),fuel=fields.get("fuel"),transmission=fields.get("transmission"),prod=prod,default_rate=rates['krw_rub_per_1000'],default_eur_rate=rates['eur_rub']),200
+            return render_template_string("""<!doctype html><html lang=ru><meta name=viewport content='width=device-width,initial-scale=1'><style>body{font:17px system-ui;background:#111;color:#eee;padding:22px;max-width:720px;margin:auto}input,button{font:inherit;width:100%;box-sizing:border-box;padding:13px;margin:8px 0 18px;border-radius:9px;border:1px solid #555}input{background:#fff;color:#111}button{background:#b71c1c;color:white;border:0;font-weight:700}label{display:block;margin-top:10px}a{color:#9ecbff}</style><h2>Нужно уточнить данные автомобиля</h2><p>Для автомобиля <b>{{title}}</b> (VIN: {{vin or 'не указан'}}) не хватает характеристик. Заполни вручную только те поля, которые Encar/ReefAPI не вернул.</p><form method=post action='/calculate'><input type=hidden name=car_id value='{{car_id}}'><input type=hidden name=rate value='{{default_rate}}'><input type=hidden name=eur_rate value='{{default_eur_rate}}'><input type=hidden name=customs_adjustment value='0'><input type=hidden name=kr_extra value='1740000'><input type=hidden name=ru_extra value='450000'>{% if not hp %}<label>Мощность двигателя, л.с.</label><input name=power_hp type=number min=1 max=2000 step=1 required placeholder='Например, 150'>{% else %}<input type=hidden name=power_hp value='{{hp}}'>{% endif %}{% if not fuel %}<label>Тип топлива</label><select name=manual_fuel required><option value=''>Выбери тип топлива</option>{% for v in ['Бензин','Дизель','Гибрид','Подключаемый гибрид (PHEV)','Электро','Газ/LPG','Бензин/газ','Другое'] %}<option value='{{v}}'>{{v}}</option>{% endfor %}</select>{% endif %}{% if not transmission %}<label>Тип трансмиссии</label><select name=manual_transmission required><option value=''>Выбери трансмиссию</option>{% for v in ['Механическая','Классический автомат','Робот (DCT/DSG)','Вариатор (CVT)','Одноступенчатая (электромобиль)','Другая'] %}<option value='{{v}}'>{{v}}</option>{% endfor %}</select>{% endif %}<label>Месяц и год производства (MM.YYYY)</label><input name=production_month value='{{prod}}' placeholder='Например, 02.2021' pattern='(0[1-9]|1[0-2])\.[0-9]{4}' required><p>Месяц подставлен автоматически, только если он действительно пришёл из Encar. Если поле пустое, API не передал точный месяц — укажи его по данным автомобиля, не по модельному году.</p><button>Рассчитать стоимость</button></form><a href='/'>Вернуться</a></html>""",car_id=car_id,title=fields.get("title") or "автомобиля",vin=fields.get("vin"),hp=fields.get("power_hp"),fuel=fields.get("fuel"),transmission=fields.get("transmission"),prod=prod,default_rate=rates['krw_rub_per_1000'],default_eur_rate=rates['eur_rub']),200
         # Never invent production month. If Encar has only a year, block and report instead of guessing.
         prod=fields.get("production_date")
         if not prod or not re.fullmatch(r"(0[1-9]|1[0-2])\.\d{4}",str(prod)):
-            msg=("Encar/XAPI не вернул подтверждённый месяц производства. Система не будет угадывать возраст машины, "
+            msg=("Encar/ReefAPI не вернул подтверждённый месяц производства. Система не будет угадывать возраст машины, "
                  "так как от него зависит таможня. Дата, полученная из API: " + str(fields.get("production_date_raw") or "нет данных"))
             return render_template_string("<!doctype html><html lang=ru><meta name=viewport content='width=device-width,initial-scale=1'><body style='font:16px system-ui;background:#111;color:#eee;padding:24px'><h2>Автопубликация остановлена</h2><p>{{msg}}</p><p>Открой карточку Encar и проверь поле даты выпуска. После исправления парсера можно повторить отправку.</p><p><a style='color:#9ecbff' href='/'>Вернуться к парсеру</a></p></body></html>",msg=msg),400
         form={
@@ -501,7 +500,7 @@ def _number(value, label, allow_blank=False, default=None):
     try:
         n=float(raw.replace(",", "."))
     except Exception:
-        # Encar/XAPI may return displacement as text, e.g. "1995cc" or "1995 cc".
+        # Encar/ReefAPI may return displacement as text, e.g. "1995cc" or "1995 cc".
         # Accept a numeric value followed only by a known unit; reject arbitrary text.
         m=re.fullmatch(r"\s*([+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+))\s*(?:cc|cm³|cm3|см³|см3|л\.?с\.?|kw|квт)?\s*", raw, re.I)
         if not m:
@@ -551,7 +550,7 @@ def _customs_personal(fields, rate, eur_rate):
 def calc_values(car_id, form):
     fields=parse(car_id)
     if fields.get("status") not in ("ready_for_manual_review",): raise ValueError(fields.get("error") or "Карточка не готова")
-    # Use horsepower from Encar/XAPI (or an explicitly entered value) only; never invent 159 hp.
+    # Use horsepower from Encar/ReefAPI (or an explicitly entered value) only; never invent 159 hp.
     manual_hp=(form.get("power_hp") or "").strip()
     if manual_hp:
         hp_value=_number(manual_hp, "мощность двигателя (л.с.)")
@@ -595,7 +594,7 @@ def calc_values(car_id, form):
     total=int(math.ceil(raw_total/10000)*10000)
     warnings=["Предварительная оценка, не официальное таможенное решение. Для авто до 3 лет таможня может определить другую таможенную стоимость.","Проверь курсы EUR/RUB и KRW/RUB на дату оформления.","Льготный утильсбор 3 400/5 200 ₽ применяется только при соблюдении всех условий личного ввоза, включая своевременную регистрацию на плательщика."]
     if hp is not None and hp>160: warnings.append("Мощность выше 160 л.с.: льготный утильсбор не применяется. Укажи подтверждённую сумму коммерческого утильсбора; без неё публикация заблокирована.")
-    if hp is None: warnings.append("Encar/XAPI не вернул мощность. Введи подтверждённую мощность вручную; расчёт не даёт разрешения на публикацию без неё.")
+    if hp is None: warnings.append("Encar/ReefAPI не вернул мощность. Введи подтверждённую мощность вручную; расчёт не даёт разрешения на публикацию без неё.")
     if fields.get("missing_fields"): warnings.append("Не хватает обязательных характеристик: "+", ".join(fields["missing_fields"]))
     if fields.get("optional_missing_fields"): warnings.append("Не удалось определить дополнительные характеристики: "+", ".join(fields["optional_missing_fields"]))
     publishable=bool(fields.get("photos")) and not fields.get("missing_fields") and hp is not None and (hp<=160 or manual_recycle is not None)
