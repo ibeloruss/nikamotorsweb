@@ -59,17 +59,29 @@ def getid(v):
     return m.group(1) if m else None
 
 def api(path):
-    key=os.environ.get("XAPI_KOREA_API_KEY","").strip()
-    if not key:return None,"Не задан XAPI_KOREA_API_KEY в Vercel."
+    # ReefAPI is the active Encar provider; keep the existing parser interface.
+    key=os.environ.get("REEFAPI_KEY","").strip()
+    if not key:
+        return None,"Не задан REEFAPI_KEY в переменных окружения Render."
+    m=re.search(r"/cars/(\d+)",path)
+    if not m:
+        return None,None
     try:
-        r=requests.get(BASE+path,headers={"X-API-Key":key,"Accept":"application/json"},timeout=18)
+        r=requests.post(
+            "https://api.reefapi.com/encar/v1/detail",
+            headers={"x-api-key":key,"Accept":"application/json","Content-Type":"application/json"},
+            json={"id":m.group(1)},timeout=25
+        )
         if r.status_code == 429:
-            retry_after = (r.headers.get("Retry-After") or "").strip()
-            suffix = f" Повтори не раньше чем через {retry_after} сек." if retry_after.isdigit() else " Подожди 60 секунд перед следующей попыткой."
-            return None,"XAPI временно ограничил запросы (HTTP 429): превышен лимит бесплатного тарифа." + suffix
-        if r.status_code!=200:return None,f"XAPI HTTP {r.status_code}: {r.text[:180]}"
-        return r.json(),None
-    except Exception as e:return None,"Ошибка XAPI: "+str(e)[:160]
+            return None,"ReefAPI временно ограничил запросы (HTTP 429)."
+        if r.status_code!=200:
+            return None,f"ReefAPI HTTP {r.status_code}: {r.text[:180]}"
+        payload=r.json()
+        if isinstance(payload,dict) and payload.get("ok") is False:
+            return None,"ReefAPI: "+str(payload.get("error") or "не удалось получить карточку")[:180]
+        return payload,None
+    except Exception as e:
+        return None,"Ошибка ReefAPI: "+str(e)[:160]
 
 def unwrap(x):
     while isinstance(x,dict):
@@ -265,13 +277,13 @@ def parse(cid):
     # fallback to Encar photo fields when represented as strings/list
     photos=(photos or urls({"photos":d.get("photos"),"thumbnail":d.get("thumbnail")}))[:MAX_PHOTOS]
 
-    brand=val(d,["manufacturer","brand","make"])
-    model=val(d,["model","model_name","vehicle_model"])
+    brand=val(d,["manufacturer","brand","make","make_en","manufacturer_en"])
+    model=val(d,["model","model_name","vehicle_model","model_group_en","model_en"])
     # IMPORTANT: badge / badge_detail represent Encar's trim; options are equipment, not trim.
-    badge=val(d,["badge"])
-    badge_detail=val(d,["badge_detail","badgeDetail"])
+    badge=val(d,["badge","grade_en","grade"])
+    badge_detail=val(d,["badge_detail","badgeDetail","grade_detail_en"])
     trim=" ".join(x for x in (badge,badge_detail) if x) or val(d,["trim","trim_name","grade","vehicle_grade"])
-    api_title=val(d,["title","vehicle_title","listing_title","name"])
+    api_title=val(d,["title","vehicle_title","listing_title","name","model_group_en"])
     title=api_title or " ".join(x for x in (brand,model,trim) if x) or None
 
     # XAPI field names vary between listing types. Prefer explicit year-month fields.
@@ -298,7 +310,7 @@ def parse(cid):
     engine_cc_value=val(d,["engine_cc","displacement","engine_size","cc","engineDisplacement","engine_capacity","engineCapacity","displacement_cc","engine_volume"])
     if engine_cc_value in (None, ""):
         searchable=" ".join(str(x or "") for x in (title,brand,model,trim)).lower()
-        fuel_text=str(val(d,["fuel_type","fuel","fuelType"]) or "").lower()
+        fuel_text=str(val(d,["fuel_type","fuel","fuelType","fuel_en","fuel_type_en"]) or "").lower()
         if ("mercedes" in searchable or "벤츠" in searchable) and "glb" in searchable and "200 d" in searchable and ("x247" in searchable or "diesel" in fuel_text or "디젤" in fuel_text or "диз" in fuel_text):
             engine_cc_value=1950
     fields={
