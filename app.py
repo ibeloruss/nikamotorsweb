@@ -270,20 +270,20 @@ def parse(cid):
     base={"id":cid,"photos":[],"missing_fields":[],"drom_calc_url":"https://www.drom.ru/world/calculator/korea/","tks_calc_url":"https://www.tks.ru/auto/calc/main/"}
     if e:return {**base,"status":"failed","error":e,"missing_fields":["all"]}
     d=unwrap(d)
-    if not isinstance(d,dict):return {**base,"status":"failed","error":"Неожиданный формат ответа XAPI","missing_fields":["all"]}
+    if not isinstance(d,dict):return {**base,"status":"failed","error":"Неожиданный формат ответа ReefAPI","missing_fields":["all"]}
     im,imerr=api(f"/cars/{cid}/images")
     photos=urls(im) if im is not None else []
     if not photos:photos=urls(d)
     # fallback to Encar photo fields when represented as strings/list
     photos=(photos or urls({"photos":d.get("photos"),"thumbnail":d.get("thumbnail")}))[:MAX_PHOTOS]
 
-    brand=val(d,["manufacturer","brand","make","make_en","manufacturer_en"])
-    model=val(d,["model","model_name","vehicle_model","model_group_en","model_en"])
+    brand=val(d,["make_en","manufacturer_en","manufacturer","brand","make"])
+    model=val(d,["model_group_en","model_en","vehicle_model_en","model_name_en","model_en_name","model","model_name","vehicle_model"])
     # IMPORTANT: badge / badge_detail represent Encar's trim; options are equipment, not trim.
-    badge=val(d,["badge","grade_en","grade"])
-    badge_detail=val(d,["badge_detail","badgeDetail","grade_detail_en"])
+    badge=val(d,["grade_en","badge_en","trim_en","badge","grade"])
+    badge_detail=val(d,["grade_detail_en","badge_detail_en","badge_detail","badgeDetail"])
     trim=" ".join(x for x in (badge,badge_detail) if x) or val(d,["trim","trim_name","grade","vehicle_grade"])
-    api_title=val(d,["title","vehicle_title","listing_title","name","model_group_en"])
+    api_title=val(d,["title_en","vehicle_title_en","listing_title_en","model_group_en","title","vehicle_title","listing_title","name"])
     title=api_title or " ".join(x for x in (brand,model,trim) if x) or None
 
     # ReefAPI field names vary between listing types. Prefer explicit year-month fields.
