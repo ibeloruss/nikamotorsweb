@@ -279,15 +279,16 @@ def parse(cid):
 
     brand=val(d,["make_en","manufacturer_en","manufacturer","brand","make"])
     model=val(d,["model_group_en","model_en","vehicle_model_en","model_name_en","model_en_name","model","model_name","vehicle_model"])
-    # IMPORTANT: badge / badge_detail represent Encar's trim; options are equipment, not trim.
-    badge=val(d,["grade_en","badge_en","trim_en","badge","grade"])
-    badge_detail=val(d,["grade_detail_en","badge_detail_en","grade_detail","badge_detail","badgeDetail"])
-    grade=val(d,["grade_en","trim_en","grade_name_en","vehicle_grade_en","grade","trim_name","vehicle_grade"])
-    trim=" ".join(str(x).strip() for x in (grade,badge_detail) if x) or val(d,["trim","trim_name","grade","vehicle_grade"])
+    # Encar hierarchy: model/model_group -> badge (variant) -> badge_detail (actual trim).
+    # Prefer the most specific grade/trim field; use badge only as a fallback.
+    badge=val(d,["badge_en","badge","model_badge_en","model_badge","grade_en"])
+    badge_detail=val(d,["badge_detail_en","grade_detail_en","trim_en","grade_name_en",
+                        "vehicle_grade_en","badge_detail","badgeDetail","grade_detail",
+                        "trim_name","vehicle_grade","grade"])
+    trim=badge_detail or val(d,["trim","trim_en","grade_en","grade","trim_name","vehicle_grade"]) or badge
     api_title=val(d,["title_en","vehicle_title_en","listing_title_en","model_group_en","title","vehicle_title","listing_title","name"])
-    # Use model plus Encar badge for the headline, and keep the actual grade as the trim line.
+    # The headline combines model and badge; the actual trim is displayed separately.
     title=" ".join(str(x).strip() for x in (model,badge) if x) or api_title or " ".join(x for x in (brand,model) if x) or None
-
     # ReefAPI field names vary between listing types. Prefer explicit year-month fields.
     production_raw=val(d,["year_month","yearMonth","production_date","manufacture_date",
                           "manufacturing_date","manufactureDate","productionDate","made_year_month",
