@@ -330,13 +330,17 @@ def parse(cid):
       "year":val(d,["form_year","year","model_year"])
     }
     # Translate common Korean Encar labels into readable listing text.
-    brand_ko = {"기아":"Kia", "현대":"Hyundai", "제네시스":"Genesis", "쉐보레":"Chevrolet", "르노코리아":"Renault Korea", "KG모빌리티":"KG Mobility", "쌍용":"SsangYong", "벤츠":"Mercedes-Benz", "메르세데스-벤츠":"Mercedes-Benz"}
+    brand_ko = {"기아":"Kia", "현대":"Hyundai", "제네시스":"Genesis", "쉐보레":"Chevrolet", "르노코리아":"Renault Korea", "르노코리아(삼성)":"Renault Korea", "르노코리아 (삼성)":"Renault Korea", "르노삼성":"Renault Samsung", "KG모빌리티":"KG Mobility", "쌍용":"SsangYong", "벤츠":"Mercedes-Benz", "메르세데스-벤츠":"Mercedes-Benz"}
     if fields.get("brand"):
-        fields["brand"] = brand_ko.get(str(fields["brand"]).strip(), fields["brand"])
+        raw_brand = str(fields["brand"]).strip()
+        fields["brand"] = brand_ko.get(raw_brand, raw_brand)
+        # Normalize Korean Renault Samsung/Renault Korea naming variants.
+        if "르노코리아" in raw_brand or "르노삼성" in raw_brand:
+            fields["brand"] = "Renault Korea"
     model_ko = {
         "더 뉴 아반떼":"The New Avante", "아반떼":"Avante", "아반떼 cn7":"Avante (CN7)",
         "더 뉴 셀토스":"The New Seltos", "셀토스 2세대":"Seltos (2nd Gen)", "셀토스":"Seltos",
-        "스포티지":"Sportage", "더 뉴 스포티지":"The New Sportage",
+        "스포티지":"Sportage", "더 뉴 스포티지":"The New Sportage", "더 뉴 qm6":"The New QM6", "뉴 qm6":"New QM6", "qm6":"QM6",
         "쏘렌토":"Sorento", "더 뉴 쏘렌토":"The New Sorento",
         "그랜저":"Grandeur", "디 올 뉴 그랜저":"The All-New Grandeur",
         "투싼":"Tucson", "싼타페":"Santa Fe", "코나":"Kona", "니로":"Niro",
@@ -353,6 +357,11 @@ def parse(cid):
     if fields.get("model"):
         raw_model = str(fields["model"]).strip()
         model_key = raw_model.casefold()
+        # Translate Korean generation prefix even when the model code itself is Latin.
+        if model_key.startswith("더 뉴 "):
+            model_key = "the new " + model_key[len("더 뉴 "):]
+        elif model_key.startswith("뉴 "):
+            model_key = "new " + model_key[len("뉴 "):]
         translated_model = model_ko.get(model_key)
         if not translated_model:
             for ko_name in sorted(model_ko, key=len, reverse=True):
