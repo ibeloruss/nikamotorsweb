@@ -397,10 +397,10 @@ def parse(cid):
     fields["optional_missing_fields"] = [k for k in ("drive",) if not fields.get(k)]
     q=quote_plus(" ".join(x for x in (brand,model,trim) if x))
     fields.update(base)
-    fields.update({"photos":photos,"missing_fields":missing,"photo_endpoint_error":imerr,"raw_field_names":sorted(str(k) for k in d.keys()),
+    fields.update({"photos":photos,"missing_fields":missing,"photo_endpoint_error":None,"raw_field_names":sorted(str(k) for k in d.keys()),
                    "drom_check_url":"https://www.drom.ru/catalog/?q="+q,
                    "status":"ready_for_manual_review" if photos and fields["price_krw"] is not None else "failed_for_publication",
-                   "warning":"Комплектация берётся из badge/badge_detail; options показываются отдельно. Если мощность или привод отсутствуют в API, проверь точную модификацию на Drom — не угадываем."})
+                   "warning":"Комплектация берётся прежде всего из grade_en/trim_en; badge обозначает модификацию (например, HEV 1.6 2WD), а не комплектацию. Если мощность или привод отсутствуют в API, проверь точную модификацию на Drom — не угадываем."})
     fields=apply_verified_drom_reference(fields)
     fields=apply_verified_transmission_reference(fields)
     # Recalculate missing fields after applying an exact verified reference match.
