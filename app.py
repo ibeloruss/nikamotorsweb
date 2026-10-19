@@ -271,22 +271,19 @@ def parse(cid):
     if e:return {**base,"status":"failed","error":e,"missing_fields":["all"]}
     d=unwrap(d)
     if not isinstance(d,dict):return {**base,"status":"failed","error":"Неожиданный формат ответа ReefAPI","missing_fields":["all"]}
-    im,imerr=api(f"/cars/{cid}/images")
-    photos=urls(im) if im is not None else []
-    if not photos:photos=urls(d)
-    # fallback to Encar photo fields when represented as strings/list
-    photos=(photos or urls({"photos":d.get("photos"),"thumbnail":d.get("thumbnail")}))[:MAX_PHOTOS]
+    # ReefAPI detail returns the full vehicle record, including photos; unlike XAPI,
+    # no separate /images request is required. Reuse this response to avoid a duplicate call.
+    photos=(urls(d) or urls({"photos":d.get("photos"),"thumbnail":d.get("thumbnail")}))[:MAX_PHOTOS]
 
+    # ReefAPI schema differs from XAPI:
+    # make_en = English make; model_group_en = English model/generation;
+    # grade_en = English grade/trim; badge = engine/drive variant (e.g. HEV 1.6 2WD).
     brand=val(d,["make_en","manufacturer_en","manufacturer","brand","make"])
     model=val(d,["model_group_en","model_en","vehicle_model_en","model_name_en","model_en_name","model","model_name","vehicle_model"])
-    # Encar hierarchy: model/model_group -> badge (variant) -> badge_detail (actual trim).
-    # Prefer the most specific grade/trim field; use badge only as a fallback.
-    badge=val(d,["badge_en","badge","model_badge_en","model_badge","grade_en"])
-    badge_detail=val(d,["badge_detail_en","grade_detail_en","trim_en","grade_name_en",
-                        "vehicle_grade_en","badge_detail","badgeDetail","grade_detail",
-                        "trim_name","vehicle_grade","grade"])
-    trim=badge_detail or val(d,["trim","trim_en","grade_en","grade","trim_name","vehicle_grade"]) or badge
-    api_title=val(d,["title_en","vehicle_title_en","listing_title_en","model_group_en","title","vehicle_title","listing_title","name"])
+    badge=val(d,["badge_en","badge","model_badge_en","model_badge"])
+    trim=val(d,["grade_en","trim_en","grade_detail_en","badge_detail_en","grade_name_en",
+                "vehicle_grade_en","grade","trim_name","vehicle_grade","badge_detail","badgeDetail"])
+    api_title=val(d,["title_en","vehicle_title_en","listing_title_en","title","vehicle_title","listing_title","name"])
     # The headline combines model and badge; the actual trim is displayed separately.
     title=" ".join(str(x).strip() for x in (model,badge) if x) or api_title or " ".join(x for x in (brand,model) if x) or None
     # ReefAPI field names vary between listing types. Prefer explicit year-month fields.
