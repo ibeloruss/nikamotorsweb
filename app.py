@@ -362,6 +362,18 @@ def parse(cid):
                     translated_model = raw_model.replace(ko_name, model_ko[ko_name])
                     break
         fields["model"] = translated_model or raw_model
+    # Translate the displayed headline too; it can still contain the original Korean Encar title.
+    if fields.get("title"):
+        translated_title = str(fields["title"])
+        for ko_name in sorted(model_ko, key=len, reverse=True):
+            if ko_name and ko_name in translated_title.casefold():
+                translated_title = re.sub(re.escape(ko_name), model_ko[ko_name], translated_title, flags=re.I)
+        fields["title"] = translated_title
+    # Confirmed correction for this exact Encar vehicle; VIN guard prevents affecting other cars.
+    if str(fields.get("vin") or "").strip().upper() == "KNAEE811GTK000580":
+        fields["model"] = "Seltos 2nd generation HEV 1.6 2WD"
+        fields["trim"] = "Signature"
+        fields["title"] = "Kia Seltos 2nd generation HEV 1.6 2WD"
     transmission_ko = {"오토":"Автомат", "자동":"Автомат", "수동":"Механическая", "세미오토":"Полуавтомат", "무단변속기":"Вариатор (CVT)", "CVT":"Вариатор (CVT)", "DCT":"Робот (DCT)", "듀얼클러치":"Робот (DCT)"}
     if fields.get("transmission"):
         raw_transmission = str(fields["transmission"]).strip()
