@@ -281,10 +281,12 @@ def parse(cid):
     model=val(d,["model_group_en","model_en","vehicle_model_en","model_name_en","model_en_name","model","model_name","vehicle_model"])
     # IMPORTANT: badge / badge_detail represent Encar's trim; options are equipment, not trim.
     badge=val(d,["grade_en","badge_en","trim_en","badge","grade"])
-    badge_detail=val(d,["grade_detail_en","badge_detail_en","badge_detail","badgeDetail"])
-    trim=" ".join(x for x in (badge,badge_detail) if x) or val(d,["trim","trim_name","grade","vehicle_grade"])
+    badge_detail=val(d,["grade_detail_en","badge_detail_en","grade_detail","badge_detail","badgeDetail"])
+    grade=val(d,["grade_en","trim_en","grade_name_en","vehicle_grade_en","grade","trim_name","vehicle_grade"])
+    trim=" ".join(str(x).strip() for x in (grade,badge_detail) if x) or val(d,["trim","trim_name","grade","vehicle_grade"])
     api_title=val(d,["title_en","vehicle_title_en","listing_title_en","model_group_en","title","vehicle_title","listing_title","name"])
-    title=api_title or " ".join(x for x in (brand,model,trim) if x) or None
+    # Use model plus Encar badge for the headline, and keep the actual grade as the trim line.
+    title=" ".join(str(x).strip() for x in (model,badge) if x) or api_title or " ".join(x for x in (brand,model) if x) or None
 
     # ReefAPI field names vary between listing types. Prefer explicit year-month fields.
     production_raw=val(d,["year_month","yearMonth","production_date","manufacture_date",
