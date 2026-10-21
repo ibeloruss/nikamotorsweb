@@ -390,7 +390,8 @@ def parse(cid):
         "티볼리":"Tivoli", "코란도":"Korando", "렉스턴":"Rexton",
         "말리부":"Malibu", "트랙스":"Trax", "트레일블레이저":"Trailblazer",
         "sm6":"SM6", "qm6":"QM6", "xm3":"XM3",
-        "골프 8세대":"Golf 8th Generation", "골프":"Golf", "티록":"T-Roc", "티구안 올스페이스":"Tiguan Allspace",\n        "제타":"Jetta", "파사트":"Passat", "아테온":"Arteon", "투아렉":"Touareg", "폴로":"Polo", "비틀":"Beetle"
+        "골프 8세대":"Golf 8th Generation", "골프":"Golf", "티록":"T-Roc", "티구안 올스페이스":"Tiguan Allspace",
+        "제타":"Jetta", "파사트":"Passat", "아테온":"Arteon", "투아렉":"Touareg", "폴로":"Polo", "비틀":"Beetle"
     }
     if fields.get("model"):
         raw_model = str(fields["model"]).strip()
