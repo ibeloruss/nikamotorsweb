@@ -2,7 +2,7 @@ import os,re,json,math,xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from urllib.parse import urlparse,parse_qs,quote_plus
 import requests
-from flask import Flask,request,jsonify,render_template_string
+from flask import Flask,request,jsonify,render_template_string,redirect
 
 app=Flask(__name__)
 BASE="https://api.xapikorea.com/v1"
@@ -727,8 +727,9 @@ def make_post(fields, calc):
               "Корея 🇰🇷 | Япония 🇯🇵 | Китай 🇨🇳"]
     return "\n".join(lines)
 
-@app.route("/calculate", methods=["POST"])
+@app.route("/calculate", methods=["GET","POST"])
 def calculate():
+    if request.method == "GET": return redirect("/")
     car_id=request.form.get("car_id","")
     try:
         fields,calc=calc_values(car_id,request.form)
@@ -736,8 +737,9 @@ def calculate():
     except Exception as e:
         return f"Расчёт не выполнен: {str(e)}. Вернись назад и проверь введённые данные.",400
 
-@app.route("/publish", methods=["POST"])
+@app.route("/publish", methods=["GET","POST"])
 def publish():
+    if request.method == "GET": return redirect("/")
     car_id=request.form.get("car_id","")
     try:
         fields,calc=calc_values(car_id,request.form)
