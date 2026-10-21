@@ -20,7 +20,7 @@ HTML="""<!doctype html><html lang=ru><meta name=viewport content="width=device-w
 {% if data.photos %}<div class=photos>{% for p in data.photos %}<a href="{{p}}" target=_blank><img src="{{p}}" loading=lazy></a>{% endfor %}</div>{% else %}<b>Фотографии не получены — не публиковать.</b>{% endif %}
 <hr><h3>Расчёт и публикация</h3>
 <form id="calcForm" method=post action=/calculate>
-<input type=hidden name=car_id value="{{data.id}}">
+<input type=hidden name=car_id value="{{data.id}}">{% for photo_url in data.photos %}<input type=hidden name=photo_url value="{{photo_url|e}}">{% endfor %}
 <input type=hidden name=rate value="{{calc.rate if calc else default_rate}}">
 <input type=hidden name=eur_rate value="{{calc.eur_rate if calc else default_eur_rate}}">
 <input type=hidden name=customs_adjustment value="{{calc.customs_adjustment if calc else 0}}">
@@ -707,6 +707,11 @@ def _customs_personal(fields, rate, eur_rate):
 def calc_values(car_id, form):
     fields=parse(car_id)
     if fields.get("status") not in ("ready_for_manual_review",): raise ValueError(fields.get("error") or "Карточка не готова")
+    # Keep the exact photo list shown in the review UI; Encar/ReefAPI may reorder
+    # image URLs when the same vehicle is fetched again during calculation/publication.
+    submitted_photos=form.getlist("photo_url") if hasattr(form,"getlist") else []
+    if submitted_photos:
+        fields["photos"]=list(dict.fromkeys(str(url).strip() for url in submitted_photos if url))[:MAX_PHOTOS]
     # Use horsepower from Encar/ReefAPI (or an explicitly entered value) only; never invent 159 hp.
     manual_hp=(form.get("power_hp") or "").strip()
     if manual_hp:
