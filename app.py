@@ -496,6 +496,33 @@ def fetch_rates():
         "date": root.attrib.get("Date") or datetime.now(timezone.utc).strftime("%d.%m.%Y")
     }
 
+def fetch_telegram_photo(url):
+    """Download an Encar image before upload so Telegram need not fetch a fragile source URL."""
+    last_error = None
+    for attempt in range(2):
+        try:
+            response = requests.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; NIKAMOTORS/1.0)", "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"},
+                timeout=(6, 18),
+            )
+            response.raise_for_status()
+            content_type = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+            content = response.content
+            if not content or len(content) > 10 * 1024 * 1024:
+                raise ValueError("Изображение пустое или превышает 10 МБ")
+            if not (content_type.startswith("image/") or content[:3] == b"\\xff\\xd8\\xff" or content.startswith(b"\\x89PNG\\r\\n\\x1a\\n") or content[:4] == b"RIFF"):
+                raise ValueError("Источник вернул не изображение")
+            ext = ".jpg" if "jpeg" in content_type or content[:3] == b"\\xff\\xd8\\xff" else ".png" if "png" in content_type or content.startswith(b"\\x89PNG") else ".webp" if "webp" in content_type or content[:4] == b"RIFF" else ".img"
+            mime = content_type if content_type.startswith("image/") else "application/octet-stream"
+            return (f"photo{ext}", content, mime)
+        except Exception as exc:
+            last_error = exc
+            if attempt == 0:
+                time.sleep(0.35)
+    return None
+
+
 def telegram_send(fields, calc):
     token=os.environ.get("TELEGRAM_BOT_TOKEN","").strip()
     # Default destination: Telegram forum/group @nikamotors, topic ID 5.
@@ -509,29 +536,47 @@ def telegram_send(fields, calc):
         parts=[part for part in channel_path.split("/") if part]
         if parts and not parts[0].startswith(("+", "joinchat")):
             chat="@" + parts[0]
-            # Use the URL's final segment as topic/thread ID unless explicitly overridden.
             if len(parts) >= 2 and not thread and parts[-1].isdigit():
                 thread=parts[-1]
     if not token: raise ValueError("Не задан TELEGRAM_BOT_TOKEN.")
     if not fields.get("photos"): raise ValueError("Нет фотографий — публикация отменена.")
     caption=make_post(fields,calc)
     thread_id=int(thread) if thread else None
-    photos=fields["photos"][:10]
+    # Keep the source order and cap the Telegram album at ten photos.
+    photos=list(dict.fromkeys(str(url).strip() for url in fields["photos"] if url))[:MAX_PHOTOS]
+    if not photos: raise ValueError("Нет доступных ссылок на фотографии — публикация отменена.")
+    uploaded = [fetch_telegram_photo(url) for url in photos]
     if len(photos)==1:
-        payload={"chat_id":chat,"photo":photos[0],"caption":caption,"parse_mode":"HTML"}
+        payload={"chat_id":chat,"caption":caption,"parse_mode":"HTML"}
         if thread_id is not None: payload["message_thread_id"]=thread_id
-        response=requests.post(f"https://api.telegram.org/bot{token}/sendPhoto",json=payload,timeout=25)
+        if uploaded[0]:
+            filename, content, mime = uploaded[0]
+            response=requests.post(
+                f"https://api.telegram.org/bot{token}/sendPhoto",
+                data=payload, files={"photo":(filename,content,mime)}, timeout=35,
+            )
+        else:
+            payload["photo"]=photos[0]
+            response=requests.post(f"https://api.telegram.org/bot{token}/sendPhoto",json=payload,timeout=35)
     else:
         media=[]
+        files={}
         for i,url in enumerate(photos):
-            item={"type":"photo","media":url}
+            item={"type":"photo","media":f"attach://photo{i}" if uploaded[i] else url}
             if i==0:
                 item["caption"]=caption
                 item["parse_mode"]="HTML"
             media.append(item)
-        payload={"chat_id":chat,"media":media}
+            if uploaded[i]:
+                filename, content, mime = uploaded[i]
+                files[f"photo{i}"]=(f"{i}_{filename}",content,mime)
+        payload={"chat_id":chat,"media":json.dumps(media,ensure_ascii=False)}
         if thread_id is not None: payload["message_thread_id"]=thread_id
-        response=requests.post(f"https://api.telegram.org/bot{token}/sendMediaGroup",json=payload,timeout=25)
+        if files:
+            response=requests.post(f"https://api.telegram.org/bot{token}/sendMediaGroup",data=payload,files=files,timeout=60)
+        else:
+            payload["media"]=media
+            response=requests.post(f"https://api.telegram.org/bot{token}/sendMediaGroup",json=payload,timeout=35)
     try: result=response.json()
     except Exception: result={}
     if not response.ok or not result.get("ok",False):
