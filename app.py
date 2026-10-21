@@ -457,7 +457,7 @@ def parse(cid):
             fields["power_hp"] = None
     # Drive type is useful descriptive information but does not affect the price calculation.
     # Do not block an otherwise valid calculation/publication solely because XAPI omits it.
-    missing=[k for k in ("title","brand","model","trim","price_krw","mileage_km","production_date","engine_cc","fuel","transmission","vin","photos") if (not fields.get(k) if k!="photos" else not photos)]
+    missing=[k for k in ("title","brand","model","trim","price_krw","mileage_km","production_date","engine_cc","fuel","transmission","photos") if (not fields.get(k) if k!="photos" else not photos)]
     fields["optional_missing_fields"] = [k for k in ("drive",) if not fields.get(k)]
     q=quote_plus(" ".join(x for x in (brand,model,trim) if x))
     fields.update(base)
@@ -468,7 +468,7 @@ def parse(cid):
     fields=apply_verified_drom_reference(fields)
     fields=apply_verified_transmission_reference(fields)
     # Recalculate missing fields after applying an exact verified reference match.
-    fields["missing_fields"]=[k for k in ("title","brand","model","trim","price_krw","mileage_km","production_date","engine_cc","fuel","transmission","vin","photos")
+    fields["missing_fields"]=[k for k in ("title","brand","model","trim","price_krw","mileage_km","production_date","engine_cc","fuel","transmission","photos")
                               if (not fields.get(k) if k!="photos" else not fields.get("photos"))]
     fields["optional_missing_fields"] = [k for k in ("drive",) if not fields.get(k)]
     return fields
