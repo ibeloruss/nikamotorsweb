@@ -151,19 +151,60 @@ def clean(v):
 def val(d,aliases):return clean(find_value(d,aliases))
 
 def urls(x):
+    """Extract photos in the provider's declared gallery order before fallback URLs."""
     out=[]
-    def walk(v):
-        if isinstance(v,dict):
-            for k,z in v.items():
-                if isinstance(z,str) and z.startswith(("https://","http://","//")) and any(a in k.lower() for a in ("image","photo","url","picture","thumbnail")):out.append("https:"+z if z.startswith("//") else z)
-                else:walk(z)
-        elif isinstance(v,list):
-            for z in v:
-                if isinstance(z,str) and z.startswith(("https://","http://","//")):out.append("https:"+z if z.startswith("//") else z)
-                else:walk(z)
-    walk(x)
-    return list(dict.fromkeys(u for u in out if re.search(r"\.(jpg|jpeg|png|webp)(\?|$)|image|photo|encar|carpicture",u,re.I)))
-
+    seen=set()
+    url_pattern=re.compile(r"\\.(jpg|jpeg|png|webp)(\\?|$)|image|photo|encar|carpicture",re.I)
+    def add(value):
+        if not isinstance(value,str) or not value.startswith(("https://","http://","//")):
+            return
+        url="https:"+value if value.startswith("//") else value
+        if url_pattern.search(url) and url not in seen:
+            seen.add(url)
+            out.append(url)
+    gallery_keys={"photos","photolist","images","imagelist","carimages","vehicleimages",
+                  "detailimages","gallery","pictures","picturelist","imageurls","photourls"}
+    def walk_gallery(value):
+        if isinstance(value,dict):
+            # Process ordered gallery arrays first, preserving their array order.
+            for key,child in value.items():
+                if norm_key(key) in gallery_keys and isinstance(child,list):
+                    walk(child)
+            # Then search nested records for their own ordered galleries.
+            for key,child in value.items():
+                if not (norm_key(key) in gallery_keys and isinstance(child,list)):
+                    walk_gallery(child)
+        elif isinstance(value,list):
+            for child in value:
+                walk_gallery(child)
+    def walk(value):
+        if isinstance(value,dict):
+            for key,child in value.items():
+                if isinstance(child,str) and any(a in key.lower() for a in ("image","photo","url","picture","thumbnail")):
+                    add(child)
+                else:
+                    walk(child)
+        elif isinstance(value,list):
+            for child in value:
+                if isinstance(child,str):
+                    add(child)
+                else:
+                    walk(child)
+    def walk_gallery_arrays(value):
+        if isinstance(value,dict):
+            for key,child in value.items():
+                if norm_key(key) in gallery_keys and isinstance(child,list):
+                    walk(child)
+            for key,child in value.items():
+                if not (norm_key(key) in gallery_keys and isinstance(child,list)):
+                    walk_gallery_arrays(child)
+        elif isinstance(value,list):
+            for child in value:
+                walk_gallery_arrays(child)
+    walk_gallery_arrays(x)
+    if not out:
+        walk(x)
+    return out
 
 def normalize_fuel(value):
     """Normalize fuel labels only when the source gives an explicit recognizable value."""
