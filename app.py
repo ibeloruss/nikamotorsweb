@@ -331,7 +331,7 @@ def parse(cid):
       "year":val(d,["form_year","year","model_year"])
     }
     # Translate common Korean Encar labels into readable listing text.
-    brand_ko = {"기아":"Kia", "현대":"Hyundai", "제네시스":"Genesis", "쉐보레":"Chevrolet", "르노코리아":"Renault Korea", "르노코리아(삼성)":"Renault Korea", "르노코리아 (삼성)":"Renault Korea", "르노삼성":"Renault Samsung", "KG모빌리티":"KG Mobility", "쌍용":"SsangYong", "벤츠":"Mercedes-Benz", "메르세데스-벤츠":"Mercedes-Benz"}
+    brand_ko = {"폭스바겐":"Volkswagen", "기아":"Kia", "현대":"Hyundai", "제네시스":"Genesis", "쉐보레":"Chevrolet", "르노코리아":"Renault Korea", "르노코리아(삼성)":"Renault Korea", "르노코리아 (삼성)":"Renault Korea", "르노삼성":"Renault Samsung", "KG모빌리티":"KG Mobility", "쌍용":"SsangYong", "벤츠":"Mercedes-Benz", "메르세데스-벤츠":"Mercedes-Benz"}
     if fields.get("brand"):
         raw_brand = str(fields["brand"]).strip()
         fields["brand"] = brand_ko.get(raw_brand, raw_brand)
@@ -339,7 +339,7 @@ def parse(cid):
         if "르노코리아" in raw_brand or "르노삼성" in raw_brand:
             fields["brand"] = "Renault Korea"
     model_ko = {
-        "더 뉴 아반떼":"The New Avante", "아반떼":"Avante", "아반떼 cn7":"Avante (CN7)",
+        "티구안 2세대":"Tiguan 2nd Generation", "티구안":"Tiguan", "더 뉴 아반떼":"The New Avante", "아반떼":"Avante", "아반떼 cn7":"Avante (CN7)",
         "더 뉴 셀토스":"The New Seltos", "셀토스 2세대":"Seltos (2nd Gen)", "셀토스":"Seltos",
         "스포티지":"Sportage", "더 뉴 스포티지":"The New Sportage", "더 뉴 qm6":"The New QM6", "뉴 qm6":"New QM6", "qm6":"QM6",
         "쏘렌토":"Sorento", "더 뉴 쏘렌토":"The New Sorento",
@@ -382,6 +382,22 @@ def parse(cid):
         fields["model"] = "Seltos 2nd generation HEV 1.6 2WD"
         fields["trim"] = "Signature"
         fields["title"] = "Kia Seltos 2nd generation HEV 1.6 2WD"
+    # Translate Korean trim/grade names without altering engine and drivetrain codes.
+    trim_ko = {
+        "프레스티지": "Prestige", "시그니처": "Signature", "노블레스": "Noblesse",
+        "익스클루시브": "Exclusive", "인스퍼레이션": "Inspiration",
+        "프리미엄": "Premium", "럭셔리": "Luxury", "모던": "Modern",
+        "스마트": "Smart", "스타일": "Style", "컴포트": "Comfort",
+        "R-Line": "R-Line", "SE": "SE", "SEL": "SEL", "SEL 프리미엄": "SEL Premium"
+    }
+    if fields.get("trim"):
+        raw_trim = str(fields["trim"]).strip()
+        translated_trim = raw_trim
+        for ko_name in sorted(trim_ko, key=len, reverse=True):
+            if any('\uac00' <= ch <= '\ud7a3' for ch in ko_name):
+                translated_trim = re.sub(re.escape(ko_name), trim_ko[ko_name], translated_trim, flags=re.I)
+        fields["trim"] = translated_trim
+
     transmission_ko = {"오토":"Автомат", "자동":"Автомат", "수동":"Механическая", "세미오토":"Полуавтомат", "무단변속기":"Вариатор (CVT)", "CVT":"Вариатор (CVT)", "DCT":"Робот (DCT)", "듀얼클러치":"Робот (DCT)"}
     if fields.get("transmission"):
         raw_transmission = str(fields["transmission"]).strip()
