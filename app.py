@@ -1,7 +1,7 @@
 import os,re,json,math,xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from urllib.parse import urlparse,parse_qs,quote_plus
-import requests
+import requests,time
 from flask import Flask,request,jsonify,render_template_string,redirect
 
 app=Flask(__name__)
@@ -65,22 +65,42 @@ def api(path):
     m=re.search(r"/cars/(\d+)",path)
     if not m:
         return None,None
-    try:
-        r=requests.post(
-            "https://api.reefapi.com/encar/v1/detail",
-            headers={"x-api-key":key,"Accept":"application/json","Content-Type":"application/json"},
-            json={"id":m.group(1)},timeout=25
-        )
-        if r.status_code == 429:
-            return None,"ReefAPI временно ограничил запросы (HTTP 429)."
-        if r.status_code!=200:
-            return None,f"ReefAPI HTTP {r.status_code}: {r.text[:180]}"
-        payload=r.json()
-        if isinstance(payload,dict) and payload.get("ok") is False:
-            return None,"ReefAPI: "+str(payload.get("error") or "не удалось получить карточку")[:180]
-        return payload,None
-    except Exception as e:
-        return None,"Ошибка ReefAPI: "+str(e)[:160]
+    # Retry transient upstream timeouts/5xx without changing Encar parsing or data mapping.
+    headers={"x-api-key":key,"Accept":"application/json","Content-Type":"application/json"}
+    last_error=None
+    for attempt in range(3):
+        try:
+            r=requests.post(
+                "https://api.reefapi.com/encar/v1/detail",
+                headers=headers,
+                json={"id":m.group(1)},timeout=(5,25)
+            )
+            if r.status_code == 429:
+                return None,"ReefAPI временно ограничил запросы (HTTP 429). Подожди немного и повтори попытку."
+            if r.status_code in (408,425) or 500 <= r.status_code < 600:
+                last_error=f"ReefAPI HTTP {r.status_code}: {r.text[:120]}"
+                if attempt < 2:
+                    time.sleep(attempt + 1)
+                    continue
+                return None,"ReefAPI временно не ответил после 3 попыток. Повтори загрузку карточки через минуту. Детали: "+last_error
+            if r.status_code!=200:
+                return None,f"ReefAPI HTTP {r.status_code}: {r.text[:180]}"
+            try:
+                payload=r.json()
+            except ValueError:
+                return None,"ReefAPI вернул ответ не в формате JSON."
+            if isinstance(payload,dict) and payload.get("ok") is False:
+                return None,"ReefAPI: "+str(payload.get("error") or "не удалось получить карточку")[:180]
+            return payload,None
+        except (requests.Timeout,requests.ConnectionError) as e:
+            last_error=str(e)[:140]
+            if attempt < 2:
+                time.sleep(attempt + 1)
+                continue
+            return None,"Не удалось получить карточку Encar после 3 попыток из-за тайм-аута/сбоя соединения. Повтори попытку через минуту. Детали: "+last_error
+        except requests.RequestException as e:
+            return None,"Ошибка запроса ReefAPI: "+str(e)[:160]
+    return None,"ReefAPI временно недоступен. Повтори попытку через минуту."
 
 def unwrap(x):
     while isinstance(x,dict):
