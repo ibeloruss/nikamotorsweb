@@ -89,8 +89,23 @@ def api(path):
                 payload=r.json()
             except ValueError:
                 return None,"ReefAPI вернул ответ не в формате JSON."
-            if isinstance(payload,dict) and payload.get("ok") is False:
-                return None,"ReefAPI: "+str(payload.get("error") or "не удалось получить карточку")[:180]
+            # ReefAPI can return HTTP 200 while wrapping an upstream timeout in an error object.
+            # Treat this as transient too, rather than passing the raw provider error to the page.
+            error_value = payload.get("error") if isinstance(payload,dict) else None
+            error_code = ""
+            if isinstance(error_value,dict):
+                error_code = str(error_value.get("code") or "").upper()
+            elif isinstance(payload,dict):
+                error_code = str(payload.get("code") or "").upper()
+            transient_error = error_code in ("UPSTREAM_TIMEOUT","TIMEOUT","ETIMEDOUT","ECONNRESET","ECONNREFUSED")
+            if transient_error:
+                last_error = str(error_value or payload.get("message") or error_code)[:160]
+                if attempt < 2:
+                    time.sleep(attempt + 1)
+                    continue
+                return None,"ReefAPI трижды не смог получить карточку Encar из-за тайм-аута внешнего источника. Повтори попытку позже. Детали: "+last_error
+            if isinstance(payload,dict) and (payload.get("ok") is False or error_value):
+                return None,"ReefAPI: "+str(error_value or payload.get("message") or "не удалось получить карточку")[:180]
             return payload,None
         except (requests.Timeout,requests.ConnectionError) as e:
             last_error=str(e)[:140]
