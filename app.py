@@ -204,6 +204,25 @@ def urls(x):
     walk_gallery_arrays(x)
     if not out:
         walk(x)
+
+    # Encar image endpoints can return photo URLs out of gallery order
+    # (for example _027.jpg before _002.jpg). When filenames expose the
+    # numbered Encar photo index, sort numerically to match encar.com order.
+    # Keep provider order unchanged for non-Encar URLs or mixed filename sets.
+    if out:
+        photo_indices = [
+            re.search(r"_(\\d+)\\.(?:jpg|jpeg|png|webp)(?:\\?|$)", url, re.I)
+            for url in out
+        ]
+        if all(photo_indices):
+            prefixes = {
+                re.sub(r"_\\d+\\.(?:jpg|jpeg|png|webp)(?:\\?.*)?$", "", url, flags=re.I)
+                for url in out
+            }
+            if len(prefixes) == 1:
+                out.sort(key=lambda url: int(re.search(
+                    r"_(\\d+)\\.(?:jpg|jpeg|png|webp)(?:\\?|$)", url, re.I
+                ).group(1)))
     return out
 
 def normalize_fuel(value):
