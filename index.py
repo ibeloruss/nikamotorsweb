@@ -255,6 +255,41 @@ def apply_verified_transmission_reference(fields):
     return fields
 
 
+def translate_vehicle_text(value):
+    """Translate common Korean make/trim labels to English for the operator UI and Telegram."""
+    if value in (None, ""):
+        return value
+    text = str(value).strip()
+    # Korean manufacturer names.
+    brands = {
+        "지프": "Jeep", "기아": "Kia", "현대": "Hyundai",
+        "제네시스": "Genesis", "쉐보레": "Chevrolet", "르노코리아": "Renault Korea",
+        "르노삼성": "Renault Samsung", "쌍용": "SsangYong", "KG모빌리티": "KG Mobility",
+        "벤츠": "Mercedes-Benz", "메르세데스-벤츠": "Mercedes-Benz",
+        "비엠더블유": "BMW", "BMW": "BMW", "아우디": "Audi",
+        "폭스바겐": "Volkswagen", "볼보": "Volvo", "토요타": "Toyota",
+        "렉서스": "Lexus", "혼다": "Honda", "닛산": "Nissan",
+        "포드": "Ford", "테슬라": "Tesla", "미니": "MINI", "랜드로버": "Land Rover",
+    }
+    for korean, english in sorted(brands.items(), key=lambda item: len(item[0]), reverse=True):
+        text = text.replace(korean, english)
+    # Common Encar trim / specification words. Keep numeric engine information intact.
+    terms = [
+        ("플러그인 하이브리드", "Plug-in Hybrid"), ("하이브리드", "Hybrid"),
+        ("디젤", "Diesel"), ("가솔린", "Gasoline"), ("휘발유", "Gasoline"),
+        ("리미티드", "Limited"), ("프레스티지", "Prestige"),
+        ("노블레스", "Noblesse"), ("시그니처", "Signature"),
+        ("익스클루시브", "Exclusive"), ("인스퍼레이션", "Inspiration"),
+        ("프리미엄", "Premium"), ("럭셔리", "Luxury"), ("모던", "Modern"),
+        ("스마트", "Smart"), ("스포츠", "Sport"), ("프라임", "Prime"),
+        ("어반", "Urban"), ("캘리그래피", "Calligraphy"), ("마스터", "Master"),
+        ("터보", "Turbo"), ("전기", "Electric"),
+    ]
+    for korean, english in terms:
+        text = text.replace(korean, english)
+    return re.sub(r"\\s+", " ", text).strip()
+
+
 def parse(cid):
     d,e=api(f"/cars/{cid}?lang=en")
     base={"id":cid,"photos":[],"missing_fields":[],"drom_calc_url":"https://www.drom.ru/world/calculator/korea/","tks_calc_url":"https://www.tks.ru/auto/calc/main/"}
@@ -267,13 +302,13 @@ def parse(cid):
     # fallback to Encar photo fields when represented as strings/list
     photos=(photos or urls({"photos":d.get("photos"),"thumbnail":d.get("thumbnail")}))[:MAX_PHOTOS]
 
-    brand=val(d,["manufacturer","brand","make"])
-    model=val(d,["model","model_name","vehicle_model"])
+    brand=translate_vehicle_text(val(d,["manufacturer","brand","make"]))
+    model=translate_vehicle_text(val(d,["model","model_name","vehicle_model"]))
     # IMPORTANT: badge / badge_detail represent Encar's trim; options are equipment, not trim.
-    badge=val(d,["badge"])
-    badge_detail=val(d,["badge_detail","badgeDetail"])
-    trim=" ".join(x for x in (badge,badge_detail) if x) or val(d,["trim","trim_name","grade","vehicle_grade"])
-    api_title=val(d,["title","vehicle_title","listing_title","name"])
+    badge=translate_vehicle_text(val(d,["badge"]))
+    badge_detail=translate_vehicle_text(val(d,["badge_detail","badgeDetail"]))
+    trim=" ".join(x for x in (badge,badge_detail) if x) or translate_vehicle_text(val(d,["trim","trim_name","grade","vehicle_grade"]))
+    api_title=translate_vehicle_text(val(d,["title","vehicle_title","listing_title","name"]))
     title=api_title or " ".join(x for x in (brand,model,trim) if x) or None
 
     # XAPI field names vary between listing types. Prefer explicit year-month fields.
