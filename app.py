@@ -402,8 +402,8 @@ def translate_vehicle_text(value):
         text = text.replace(korean, english)
     # Do not display untranslated Hangul in the make/model/trim fields.
     # If an uncommon name has no dictionary entry, retain its Latin/numeric parts only.
-    text = re.sub(r"[\\uac00-\\ud7a3]+", "", text)
-    text = re.sub(r"\\s+", " ", text).strip(" -·/")
+    text = re.sub(r"[\uac00-\ud7a3]+", "", text)
+    text = re.sub(r"\s+", " ", text).strip(" -·/")
     return text or None
 
 
