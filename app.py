@@ -44,7 +44,7 @@ HTML="""<!doctype html><html lang=ru><meta name=viewport content="width=device-w
 Возраст: {{calc.age_label}}<br>Таможенные платежи (оценка): {{'{:,.0f}'.format(calc.customs_duty + calc.customs_adjustment).replace(',', ' ')}} ₽<br>
 Утилизационный сбор: {{'{:,.0f}'.format(calc.recycle_fee).replace(',', ' ')}} ₽<br>Расходы РФ: {{'{:,.0f}'.format(calc.ru_extra).replace(',', ' ')}} ₽</div>
 {% if calc.warnings %}<div class=item><b>Важно:</b><ul>{% for warning in calc.warnings %}<li>{{warning}}</li>{% endfor %}</ul></div>{% endif %}
-{% if calc.publishable %}<form method=post action=/publish><input type=hidden name=car_id value="{{data.id}}"><input type=hidden name=rate value="{{calc.rate}}"><input type=hidden name=eur_rate value="{{calc.eur_rate}}"><input type=hidden name=customs_adjustment value="{{calc.customs_adjustment}}"><input type=hidden name=manual_recycle value="{{calc.manual_recycle if calc.manual_recycle is not none else ''}}"><input type=hidden name=power_hp value="{{calc.power_hp if calc and calc.power_hp is not none else (data.power_hp if data.power_hp is not none else '')}}"><input type=hidden name=production_month value="{{calc.production_month if calc and calc.production_month else data.production_date or ''}}"><input type=hidden name=manual_fuel value="{{calc.manual_fuel if calc else ''}}"><input type=hidden name=manual_transmission value="{{calc.manual_transmission if calc else ''}}"><input type=hidden name=kr_extra value="{{calc.kr_extra}}"><input type=hidden name=ru_extra value="{{calc.ru_extra}}"><button>Опубликовать в Telegram</button></form>{% else %}<b>Публикация заблокирована: уточни обязательные данные и пересчитай.</b>{% endif %}{% endif %}
+{% if calc.publishable %}<form method=post action=/publish><input type=hidden name=car_id value="{{data.id}}"><input type=hidden name=rate value="{{calc.rate}}"><input type=hidden name=eur_rate value="{{calc.eur_rate}}"><input type=hidden name=customs_adjustment value="{{calc.customs_adjustment}}"><input type=hidden name=manual_recycle value="{{calc.manual_recycle if calc.manual_recycle is not none else ''}}"><input type=hidden name=power_hp value="{{calc.power_hp if calc and calc.power_hp is not none else (data.power_hp if data.power_hp is not none else '')}}"><input type=hidden name=production_month value="{{calc.production_month if calc and calc.production_month else data.production_date or ''}}"><input type=hidden name=manual_fuel value="{{calc.manual_fuel if calc else ''}}"><input type=hidden name=manual_transmission value="{{calc.manual_transmission if calc else ''}}"><input type=hidden name=kr_extra value="{{calc.kr_extra}}"><input type=hidden name=ru_extra value="{{calc.ru_extra}}"><label for="publish_comment"><b>Комментарий к объявлению (необязательно)</b></label><textarea id="publish_comment" name="comment" rows="3" maxlength="1000" placeholder="Например: Отличное состояние, без вложений" style="width:100%;box-sizing:border-box;padding:12px;margin:7px 0 12px;border-radius:9px;border:1px solid #555;background:#222;color:#eee;font:inherit"></textarea><button>Опубликовать в Telegram</button></form>{% else %}<b>Публикация заблокирована: уточни обязательные данные и пересчитай.</b>{% endif %}{% endif %}
 
 {% endif %}<script>function toggleEdit(key){const sel=document.getElementById(key+'Edit');sel.hidden=!sel.hidden;if(!sel.hidden)sel.focus();}</script></html>"""
 
@@ -586,7 +586,7 @@ def fetch_telegram_photo(url):
     return None
 
 
-def telegram_send(fields, calc):
+def telegram_send(fields, calc, comment=""):
     token=os.environ.get("TELEGRAM_BOT_TOKEN","").strip()
     # Default destination: Telegram forum/group @nikamotors, topic ID 5.
     # Telegram API needs chat_id and message_thread_id separately; a t.me URL
@@ -603,7 +603,7 @@ def telegram_send(fields, calc):
                 thread=parts[-1]
     if not token: raise ValueError("Не задан TELEGRAM_BOT_TOKEN.")
     if not fields.get("photos"): raise ValueError("Нет фотографий — публикация отменена.")
-    caption=make_post(fields,calc)
+    caption=make_post(fields,calc,comment)
     thread_id=int(thread) if thread else None
     # Keep the source order and cap the Telegram album at ten photos.
     photos=list(dict.fromkeys(str(url).strip() for url in fields["photos"] if url))[:MAX_PHOTOS]
@@ -694,7 +694,7 @@ def auto_publish():
             return "Автопубликация остановлена: не хватает обязательных подтверждённых данных или утильсбора. " + ", ".join(fields.get("missing_fields",[])),400
         # Add explicit rate provenance to the caption.
         calc["warnings"].append(f"Курсы автоматически загружены: {rates['source']}, дата данных {rates['date']}.")
-        telegram_send(fields,calc)
+        telegram_send(fields,calc,request.form.get("comment",""))
         return ("<html lang=ru><meta name=viewport content='width=device-width,initial-scale=1'><body style='background:#111;color:#eee;font:18px system-ui;padding:20px'>"
                 "<h2>Готово: объявление отправлено в Telegram</h2><p>Курсы EUR/RUB и KRW/RUB загружены автоматически. Источник: "
                 + rates["source"] + ". Итоговая цена включена в публикацию.</p><a style='color:#9ecbff' href='/'>Добавить следующий автомобиль</a></body></html>")
@@ -825,7 +825,7 @@ def calc_values(car_id, form):
     publishable=bool(fields.get("photos")) and not fields.get("missing_fields") and hp is not None and (hp<=160 or manual_recycle is not None)
     return fields,{"rate":rate,"eur_rate":eur_rate,"production_month":production_month,"customs_duty":customs_duty,"customs_adjustment":customs_adjustment,"recycle_fee":recycle_fee,"manual_recycle":manual_recycle,"kr_extra":kr_extra,"ru_extra":ru_extra,"krw_total":krw_total,"total":total,"age_label":age_label,"age_months":age_months,"warnings":warnings,"publishable":publishable,"power_hp":hp,"manual_fuel":manual_fuel,"manual_transmission":manual_transmission}
 
-def make_post(fields, calc):
+def make_post(fields, calc, comment=""):
     # Telegram template: bold labels, trim after production date, clear separators.
     import html
     def esc(value):
@@ -867,8 +867,11 @@ def make_post(fields, calc):
     lines.append(f"✅ <b>Двигатель:</b> {esc(engine_l)} л{esc(power)}")
     if fuel: lines.append(f"✅ <b>Топливо:</b> {esc(fuel)}")
     if transmission: lines.append(f"✅ <b>КПП:</b> {esc(transmission)}")
-    lines += [f"✅ <b>Пробег:</b> {esc(mileage)} км",
-              "━━━━━━━━━━━━",
+    lines += [f"✅ <b>Пробег:</b> {esc(mileage)} км"]
+    comment = str(comment or "").strip()
+    if comment:
+        lines.append(f"🔸 {esc(comment)}")
+    lines += ["━━━━━━━━━━━━",
               "💰 СТОИМОСТЬ ДО МОСКВЫ", f"<b>{fmt(calc['total'])} ₽</b>",
               "━━━━━━━━━━━━",
               "🤝 Подберём и привезём автомобиль из Кореи и Японии под ваш бюджет!",
