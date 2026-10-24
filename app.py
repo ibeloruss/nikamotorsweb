@@ -211,17 +211,17 @@ def urls(x):
     # Keep provider order unchanged for non-Encar URLs or mixed filename sets.
     if out:
         photo_indices = [
-            re.search(r"_(\\d+)\\.(?:jpg|jpeg|png|webp)(?:\\?|$)", url, re.I)
+            re.search(r"_(\d+)\.(?:jpg|jpeg|png|webp)(?:\?|$)", url, re.I)
             for url in out
         ]
         if all(photo_indices):
             prefixes = {
-                re.sub(r"_\\d+\\.(?:jpg|jpeg|png|webp)(?:\\?.*)?$", "", url, flags=re.I)
+                re.sub(r"_\d+\.(?:jpg|jpeg|png|webp)(?:\?.*)?$", "", url, flags=re.I)
                 for url in out
             }
             if len(prefixes) == 1:
                 out.sort(key=lambda url: int(re.search(
-                    r"_(\\d+)\\.(?:jpg|jpeg|png|webp)(?:\\?|$)", url, re.I
+                    r"_(\d+)\.(?:jpg|jpeg|png|webp)(?:\?|$)", url, re.I
                 ).group(1)))
     return out
 
