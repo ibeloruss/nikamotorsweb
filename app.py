@@ -359,6 +359,39 @@ def apply_verified_transmission_reference(fields):
     return fields
 
 
+def translate_vehicle_text(value):
+    """Translate common Korean make/trim labels to English for the operator UI and Telegram."""
+    if value in (None, ""):
+        return value
+    text = str(value).strip()
+    brands = {
+        "지프": "Jeep", "기아": "Kia", "현대": "Hyundai",
+        "제네시스": "Genesis", "쉐보레": "Chevrolet", "르노코리아": "Renault Korea",
+        "르노삼성": "Renault Samsung", "쌍용": "SsangYong", "KG모빌리티": "KG Mobility",
+        "메르세데스-벤츠": "Mercedes-Benz", "벤츠": "Mercedes-Benz",
+        "비엠더블유": "BMW", "아우디": "Audi", "폭스바겐": "Volkswagen",
+        "볼보": "Volvo", "토요타": "Toyota", "렉서스": "Lexus", "혼다": "Honda",
+        "닛산": "Nissan", "포드": "Ford", "테슬라": "Tesla", "미니": "MINI",
+        "랜드로버": "Land Rover",
+    }
+    for korean, english in sorted(brands.items(), key=lambda item: len(item[0]), reverse=True):
+        text = text.replace(korean, english)
+    terms = [
+        ("플러그인 하이브리드", "Plug-in Hybrid"), ("하이브리드", "Hybrid"),
+        ("디젤", "Diesel"), ("가솔린", "Gasoline"), ("휘발유", "Gasoline"),
+        ("리미티드", "Limited"), ("프레스티지", "Prestige"),
+        ("노블레스", "Noblesse"), ("시그니처", "Signature"),
+        ("익스클루시브", "Exclusive"), ("인스퍼레이션", "Inspiration"),
+        ("프리미엄", "Premium"), ("럭셔리", "Luxury"), ("모던", "Modern"),
+        ("스마트", "Smart"), ("스포츠", "Sport"), ("프라임", "Prime"),
+        ("어반", "Urban"), ("캘리그래피", "Calligraphy"), ("마스터", "Master"),
+        ("터보", "Turbo"), ("전기", "Electric"),
+    ]
+    for korean, english in terms:
+        text = text.replace(korean, english)
+    return re.sub(r"\\s+", " ", text).strip()
+
+
 def parse(cid):
     d,e=api(f"/cars/{cid}?lang=en")
     base={"id":cid,"photos":[],"missing_fields":[],"drom_calc_url":"https://www.drom.ru/world/calculator/korea/","tks_calc_url":"https://www.tks.ru/auto/calc/main/"}
@@ -372,15 +405,15 @@ def parse(cid):
     # ReefAPI schema differs from XAPI:
     # make_en = English make; model_group_en = English model/generation;
     # grade_en = English grade/trim; badge = engine/drive variant (e.g. HEV 1.6 2WD).
-    brand=val(d,["make_en","manufacturer_en","manufacturer","brand","make"])
+    brand=translate_vehicle_text(val(d,["make_en","manufacturer_en","manufacturer","brand","make"]))
     # Prefer explicitly English fields before generic fields: ReefAPI may expose Korean text in generic model keys.
-    model=val(d,["model_group_en","model_en","vehicle_model_en","model_name_en","model_en_name"]) or val(d,["model","model_name","vehicle_model"])
+    model=translate_vehicle_text(val(d,["model_group_en","model_en","vehicle_model_en","model_name_en","model_en_name"]) or val(d,["model","model_name","vehicle_model"]))
     if model and any(token in str(model).casefold() for token in ("더 뉴 qm6","더뉴 qm6","qm6 더 뉴")):
         model="The New QM6"
-    badge=val(d,["badge_en","badge","model_badge_en","model_badge"])
-    trim=val(d,["grade_en","trim_en","grade_detail_en","badge_detail_en","grade_name_en",
-                "vehicle_grade_en","grade","trim_name","vehicle_grade","badge_detail","badgeDetail"])
-    api_title=val(d,["title_en","vehicle_title_en","listing_title_en","title","vehicle_title","listing_title","name"])
+    badge=translate_vehicle_text(val(d,["badge_en","badge","model_badge_en","model_badge"]))
+    trim=translate_vehicle_text(val(d,["grade_en","trim_en","grade_detail_en","badge_detail_en","grade_name_en",
+                "vehicle_grade_en","grade","trim_name","vehicle_grade","badge_detail","badgeDetail"]))
+    api_title=translate_vehicle_text(val(d,["title_en","vehicle_title_en","listing_title_en","title","vehicle_title","listing_title","name"]))
     # The headline combines model and badge; the actual trim is displayed separately.
     title=" ".join(str(x).strip() for x in (model,badge) if x) or api_title or " ".join(x for x in (brand,model) if x) or None
     # ReefAPI field names vary between listing types. Prefer explicit year-month fields.
