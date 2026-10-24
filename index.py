@@ -256,38 +256,51 @@ def apply_verified_transmission_reference(fields):
 
 
 def translate_vehicle_text(value):
-    """Translate common Korean make/trim labels to English for the operator UI and Telegram."""
+    """Return English vehicle make/model/trim text; prefer explicit English source fields."""
     if value in (None, ""):
         return value
     text = str(value).strip()
-    # Korean manufacturer names.
-    brands = {
-        "지프": "Jeep", "기아": "Kia", "현대": "Hyundai",
-        "제네시스": "Genesis", "쉐보레": "Chevrolet", "르노코리아": "Renault Korea",
-        "르노삼성": "Renault Samsung", "쌍용": "SsangYong", "KG모빌리티": "KG Mobility",
-        "벤츠": "Mercedes-Benz", "메르세데스-벤츠": "Mercedes-Benz",
-        "비엠더블유": "BMW", "BMW": "BMW", "아우디": "Audi",
-        "폭스바겐": "Volkswagen", "볼보": "Volvo", "토요타": "Toyota",
-        "렉서스": "Lexus", "혼다": "Honda", "닛산": "Nissan",
-        "포드": "Ford", "테슬라": "Tesla", "미니": "MINI", "랜드로버": "Land Rover",
-    }
-    for korean, english in sorted(brands.items(), key=lambda item: len(item[0]), reverse=True):
-        text = text.replace(korean, english)
-    # Common Encar trim / specification words. Keep numeric engine information intact.
+    # Makes and model names commonly returned in Korean by Encar.
     terms = [
-        ("플러그인 하이브리드", "Plug-in Hybrid"), ("하이브리드", "Hybrid"),
-        ("디젤", "Diesel"), ("가솔린", "Gasoline"), ("휘발유", "Gasoline"),
-        ("리미티드", "Limited"), ("프레스티지", "Prestige"),
+        ("메르세데스-벤츠", "Mercedes-Benz"), ("르노코리아", "Renault Korea"),
+        ("KG모빌리티", "KG Mobility"), ("랜드로버", "Land Rover"),
+        ("르노삼성", "Renault Samsung"), ("비엠더블유", "BMW"),
+        ("쉐보레", "Chevrolet"), ("폭스바겐", "Volkswagen"),
+        ("제네시스", "Genesis"), ("쌍용", "SsangYong"),
+        ("현대", "Hyundai"), ("기아", "Kia"), ("지프", "Jeep"),
+        ("벤츠", "Mercedes-Benz"), ("아우디", "Audi"), ("볼보", "Volvo"),
+        ("토요타", "Toyota"), ("렉서스", "Lexus"), ("혼다", "Honda"),
+        ("닛산", "Nissan"), ("포드", "Ford"), ("테슬라", "Tesla"), ("미니", "MINI"),
+        ("레니게이드", "Renegade"), ("그랜드 체로키", "Grand Cherokee"),
+        ("체로키", "Cherokee"), ("랭글러", "Wrangler"), ("컴패스", "Compass"),
+        ("쏘렌토", "Sorento"), ("스포티지", "Sportage"), ("셀토스", "Seltos"),
+        ("카니발", "Carnival"), ("쏘울", "Soul"), ("모닝", "Morning"),
+        ("레이", "Ray"), ("K3", "K3"), ("K5", "K5"), ("K7", "K7"), ("K8", "K8"),
+        ("아반떼", "Avante"), ("쏘나타", "Sonata"), ("그랜저", "Grandeur"),
+        ("투싼", "Tucson"), ("싼타페", "Santa Fe"), ("팰리세이드", "Palisade"),
+        ("코나", "Kona"), ("캐스퍼", "Casper"), ("베뉴", "Venue"),
+        ("아이오닉", "Ioniq"), ("제네시스 G70", "Genesis G70"),
+        ("제네시스 G80", "Genesis G80"), ("제네시스 GV70", "Genesis GV70"),
+        ("제네시스 GV80", "Genesis GV80"), ("티볼리", "Tivoli"),
+        ("토레스", "Torres"), ("렉스턴", "Rexton"), ("QM6", "QM6"),
+        ("SM6", "SM6"), ("마스터", "Master"), ("플러그인 하이브리드", "Plug-in Hybrid"),
+        ("하이브리드", "Hybrid"), ("디젤", "Diesel"), ("가솔린", "Gasoline"),
+        ("휘발유", "Gasoline"), ("리미티드", "Limited"), ("프레스티지", "Prestige"),
         ("노블레스", "Noblesse"), ("시그니처", "Signature"),
         ("익스클루시브", "Exclusive"), ("인스퍼레이션", "Inspiration"),
         ("프리미엄", "Premium"), ("럭셔리", "Luxury"), ("모던", "Modern"),
         ("스마트", "Smart"), ("스포츠", "Sport"), ("프라임", "Prime"),
-        ("어반", "Urban"), ("캘리그래피", "Calligraphy"), ("마스터", "Master"),
-        ("터보", "Turbo"), ("전기", "Electric"),
+        ("어반", "Urban"), ("캘리그래피", "Calligraphy"), ("터보", "Turbo"),
+        ("전기", "Electric"), ("디럭스", "Deluxe"), ("프레스티지", "Prestige"),
+        ("장애인", "Mobility Support"), ("일반", "Standard"),
     ]
-    for korean, english in terms:
+    for korean, english in sorted(terms, key=lambda item: len(item[0]), reverse=True):
         text = text.replace(korean, english)
-    return re.sub(r"\\s+", " ", text).strip()
+    # Do not display untranslated Hangul in the make/model/trim fields.
+    # If an uncommon name has no dictionary entry, retain its Latin/numeric parts only.
+    text = re.sub(r"[\\uac00-\\ud7a3]+", "", text)
+    text = re.sub(r"\\s+", " ", text).strip(" -·/")
+    return text or None
 
 
 def parse(cid):
@@ -302,13 +315,13 @@ def parse(cid):
     # fallback to Encar photo fields when represented as strings/list
     photos=(photos or urls({"photos":d.get("photos"),"thumbnail":d.get("thumbnail")}))[:MAX_PHOTOS]
 
-    brand=translate_vehicle_text(val(d,["manufacturer","brand","make"]))
-    model=translate_vehicle_text(val(d,["model","model_name","vehicle_model"]))
+    brand=translate_vehicle_text(val(d,["manufacturer_en","make_en","brand_en","manufacturer","brand","make"]))
+    model=translate_vehicle_text(val(d,["model_en","model_name_en","vehicle_model_en","model","model_name","vehicle_model"]))
     # IMPORTANT: badge / badge_detail represent Encar's trim; options are equipment, not trim.
-    badge=translate_vehicle_text(val(d,["badge"]))
-    badge_detail=translate_vehicle_text(val(d,["badge_detail","badgeDetail"]))
-    trim=" ".join(x for x in (badge,badge_detail) if x) or translate_vehicle_text(val(d,["trim","trim_name","grade","vehicle_grade"]))
-    api_title=translate_vehicle_text(val(d,["title","vehicle_title","listing_title","name"]))
+    badge=translate_vehicle_text(val(d,["badge_en","trim_en","badge"]))
+    badge_detail=translate_vehicle_text(val(d,["badge_detail_en","badge_detail","badgeDetail"]))
+    trim=" ".join(x for x in (badge,badge_detail) if x) or translate_vehicle_text(val(d,["trim_en","grade_en","trim","trim_name","grade","vehicle_grade"]))
+    api_title=translate_vehicle_text(val(d,["title_en","vehicle_title_en","listing_title_en","title","vehicle_title","listing_title","name"]))
     title=api_title or " ".join(x for x in (brand,model,trim) if x) or None
 
     # XAPI field names vary between listing types. Prefer explicit year-month fields.
