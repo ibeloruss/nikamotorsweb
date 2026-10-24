@@ -427,7 +427,7 @@ def parse(cid):
       "year":val(d,["form_year","year","model_year"])
     }
     # Translate common Korean Encar labels into readable listing text.
-    brand_ko = {"폭스바겐":"Volkswagen", "기아":"Kia", "현대":"Hyundai", "제네시스":"Genesis", "쉐보레":"Chevrolet", "르노코리아":"Renault Korea", "르노코리아(삼성)":"Renault Korea", "르노코리아 (삼성)":"Renault Korea", "르노삼성":"Renault Samsung", "KG모빌리티":"KG Mobility", "쌍용":"SsangYong", "벤츠":"Mercedes-Benz", "메르세데스-벤츠":"Mercedes-Benz"}
+    brand_ko = {"폭스바겐":"Volkswagen", "기아":"Kia", "현대":"Hyundai", "제네시스":"Genesis", "쉐보레":"Chevrolet", "르노코리아":"Renault Korea", "르노코리아(삼성)":"Renault Korea", "르노코리아 (삼성)":"Renault Korea", "르노삼성":"Renault Samsung", "KG모빌리티":"KG Mobility", "쌍용":"SsangYong", "벤츠":"Mercedes-Benz", "메르세데스-벤츠":"Mercedes-Benz", "볼보":"Volvo"}
     if fields.get("brand"):
         raw_brand = str(fields["brand"]).strip()
         fields["brand"] = brand_ko.get(raw_brand, raw_brand)
