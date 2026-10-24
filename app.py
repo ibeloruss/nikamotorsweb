@@ -530,10 +530,13 @@ def fetch_rates():
             rates[char_code] = value / nominal
     if "EUR" not in rates or "KRW" not in rates:
         raise ValueError("Банк России не вернул курс EUR и/или KRW.")
+    # NIKA MOTORS markup: add 4 RUB per 1,000 KRW to the official CBR rate.
+    # Keep EUR/RUB unchanged; apply the markup only to the KRW calculation rate.
     return {
         "eur_rub": rates["EUR"],
-        "krw_rub_per_1000": rates["KRW"] * 1000,
-        "source": "Банк России",
+        "krw_rub_per_1000": rates["KRW"] * 1000 + 4,
+        "krw_markup_rub_per_1000": 4,
+        "source": "Банк России + надбавка NIKA MOTORS 4 ₽ за 1 000 ₩",
         "date": root.attrib.get("Date") or datetime.now(timezone.utc).strftime("%d.%m.%Y")
     }
 
@@ -687,7 +690,7 @@ def home():
         car=request.form.get("car","");cid=getid(car)
         data=parse(cid) if cid else {"status":"failed","error":"Не удалось извлечь ID из ссылки","photos":[],"missing_fields":["valid ID"]}
         data_json=json.dumps(data,ensure_ascii=False,indent=2)
-    return render_template_string(HTML,car=car,data=data,data_json=data_json,calc=None,default_rate=os.environ.get('KRW_RUB_PER_1000','63.78'),default_eur_rate=os.environ.get('EUR_RUB_RATE',''))
+    return render_template_string(HTML,car=car,data=data,data_json=data_json,calc=None,default_rate=str(float(os.environ.get('KRW_RUB_PER_1000','63.78')) + 4),default_eur_rate=os.environ.get('EUR_RUB_RATE',''))
 
 
 def _number(value, label, allow_blank=False, default=None):
